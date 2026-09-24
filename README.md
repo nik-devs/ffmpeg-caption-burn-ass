@@ -30,10 +30,19 @@ Style (all optional):
   "primaryColor": "#FFFFFF",
   "highlightColor": "#FFE600",
   "outline": 4,
-  "position": "bottom | center",
-  "maxWordsPerGroup": 4
+  "position": "bottom | center | top",
+  "marginV": 480,
+  "maxWordsPerGroup": 4,
+  "bold": true,
+  "uppercase": false,
+  "box": {"color": "#000000", "opacity": 0.85, "padding": 16}
 }
 ```
+
+- `marginV` — distance in px (on the 1080×1920 canvas) from the bottom for
+  `bottom`, from the top for `top`; defaults keep the text out of the Reels UI.
+- `box` — a solid plate behind each line (libass `BorderStyle 3`): the
+  «white word in a black box» caption. Omit it for outlined text.
 
 ## Usage
 

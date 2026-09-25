@@ -30,7 +30,8 @@ def _t(t):
     cs = max(0, round(t * 100))
     return f"{cs//360000}:{(cs%360000)//6000:02d}:{(cs%6000)//100:02d}.{cs%100:02d}"
 
-def _esc(s): return re.sub(r"\s+", " ", re.sub(r"[{}\\\\]", "", s)).strip()
+# [laughs] / [whispers] / *sighs* — voice-performance tags from a TTS script, never shown
+def _esc(s): return re.sub(r"\s+", " ", re.sub(r"[{}\\\\]", "", re.sub(r"\[[^\]]*\]|\*[^*]*\*", "", s))).strip()
 
 def _groups(words, max_words, max_chars=30):
     out, cur, ln = [], [], 0

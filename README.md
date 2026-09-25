@@ -30,6 +30,7 @@ Style (all optional):
   "primaryColor": "#FFFFFF",
   "highlightColor": "#FFE600",
   "outline": 4,
+  "outlineColor": "#000000",
   "position": "bottom | center | top",
   "marginV": 480,
   "maxWordsPerGroup": 4,
@@ -43,6 +44,8 @@ Style (all optional):
   `bottom`, from the top for `top`; defaults keep the text out of the Reels UI.
 - `box` — a solid plate behind each line (libass `BorderStyle 3`): the
   «white word in a black box» caption. Omit it for outlined text.
+- `outlineColor` — the outline around the letters when there is no `box`
+  (black by default; white for dark text on a busy background).
 
 ## Usage
 

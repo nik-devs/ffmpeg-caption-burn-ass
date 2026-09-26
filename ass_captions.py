@@ -98,13 +98,15 @@ def _font_path(family, bold, font_dirs=()):
     return subprocess.run(["fc-match", "-f", "%{file}", q], capture_output=True, text=True, check=True).stdout.strip()
 
 def _measurer(path, font_size):
-    """Width of a string in canvas units at libass's size: libass sets the font so
-    ascent+descent == Fontsize, PIL sizes by em — scale between the two."""
+    """Text metrics in canvas units at libass's size. libass sets the font so that
+    ascent+descent == Fontsize, PIL sizes by em — scale between the two.
+    Returns (width_of, ascent, cap_height)."""
     from PIL import ImageFont
     probe = ImageFont.truetype(path, 200)
     asc, desc = probe.getmetrics()
     k = font_size / (asc + desc)
-    return lambda text: probe.getlength(text) * k
+    cap = -probe.getbbox("H", anchor="ls")[1] * k
+    return (lambda text: probe.getlength(text) * k), asc * k, cap
 
 def _wrap(text, width_of, max_w):
     lines, cur = [], ""
@@ -137,9 +139,13 @@ PHRASE_DEFAULTS = {"font": "Liberation Sans", "fontSize": 64, "primaryColor": "#
 def _phrases(phrases, st, position, play_y, font_dirs):
     plate = {**PHRASE_DEFAULTS["plate"], **(st.get("plate") or {})}
     size = float(st["fontSize"])
-    width_of = _measurer(_font_path(st["font"], st["bold"], font_dirs), size)
+    width_of, ascent, cap = _measurer(_font_path(st["font"], st["bold"], font_dirs), size)
     max_w = PLAY_X * float(st.get("maxWidth", 0.84)) - 2 * plate["padX"]
-    line_h = size * float(st.get("lineSpacing", 1.15))
+    # every line is its own event on its own baseline, so spacing is ours, not
+    # libass's; the plate is centred on the CAPITALS (cap top .. baseline) —
+    # centring the whole line box left the text riding high, descenders hang
+    # into the bottom padding as in any designed caption
+    step = size * float(st.get("lineSpacing", 1.15))
     default_v = {"top": round(play_y * 0.13), "center": 0}.get(position, round(play_y * 0.25))
     margin_v = int(st.get("marginV", default_v))
     alpha = round(255 * (1 - float(plate["opacity"])))
@@ -151,15 +157,16 @@ def _phrases(phrases, st, position, play_y, font_dirs):
         if not text: continue
         lines = _wrap(text, width_of, max_w)
         w = max(width_of(l) for l in lines) + 2 * plate["padX"]
-        h = line_h * len(lines) + 2 * plate["padY"]
+        h = cap + step * (len(lines) - 1) + 2 * plate["padY"]
         cx = PLAY_X / 2
         # anchor: bottom edge margin_v above the frame bottom (top/center likewise)
         top = {"top": margin_v, "center": (play_y - h) / 2}.get(position, play_y - margin_v - h)
-        x0 = cx - w / 2
-        box = f"{{\\an7\\pos({x0:.1f},{top:.1f}){fill}\\p1}}{_rounded_rect(w, h, plate['radius'])}"
-        txt = f"{{\\an8\\pos({cx:.1f},{top + plate['padY']:.1f})\\bord0\\shad0}}" + "\\N".join(lines)
+        box = f"{{\\an7\\pos({cx - w / 2:.1f},{top:.1f}){fill}\\p1}}{_rounded_rect(w, h, plate['radius'])}"
         out.append(_dlg(ph["start"], ph["end"], box, 0))
-        out.append(_dlg(ph["start"], ph["end"], txt, 1))
+        for i, line in enumerate(lines):
+            baseline = top + plate["padY"] + cap + i * step
+            # \an8 anchors the line box top, which sits `ascent` above the baseline
+            out.append(_dlg(ph["start"], ph["end"], f"{{\\an8\\pos({cx:.1f},{baseline - ascent:.1f})\\bord0\\shad0}}{line}", 1))
     return out
 
 def build_ass(words, mode, style=None, *, phrases=None, video_size=None, font_dirs=()):
